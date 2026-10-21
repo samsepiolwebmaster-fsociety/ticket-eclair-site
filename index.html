@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ticket éclair</title>
+<meta name="description" content="Photo du ticket, recadrage automatique, effet scan, PDF. Tout se passe dans votre téléphone.">
+<meta name="theme-color" content="#060606">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ticket éclair">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/css/style.css">
+</head>
+<body>
+<div class="halo" aria-hidden="true"></div>
+
+<header class="top mono">
+  <span class="brand">Ticket<i>⚡</i>éclair</span>
+  <span>100 % dans le téléphone · v1.1</span>
+</header>
+
+<main id="app">
+  <!-- Écran vide : un seul geste -->
+  <section id="empty" class="empty">
+    <h1>Un ticket.<br><em>Un geste.</em></h1>
+    <p class="lede">Photo, recadrage, effet scan, PDF. <em>Rien d'autre.</em></p>
+  </section>
+
+  <!-- Ticket en cours -->
+  <section id="current" class="current" hidden>
+    <div class="cur-head mono"><span id="curLabel">Ticket 1</span><span id="curInfo" class="dim"></span></div>
+    <div class="preview"><img id="curImg" alt="Ticket redressé"></div>
+    <div class="chips" id="modeChips" role="group" aria-label="Effet">
+      <button data-mode="scan" class="on">Scan</button>
+      <button data-mode="nb">N&amp;B</button>
+      <button data-mode="couleur">Couleur</button>
+    </div>
+    <div class="row2">
+      <button id="btnCorners" class="ghost">Ajuster les coins</button>
+      <button id="btnRotate" class="ghost" aria-label="Tourner d'un quart de tour">Tourner ↻</button>
+    </div>
+    <div class="fields">
+      <label><span class="mono">Enseigne</span><input id="fShop" type="text" autocomplete="off" autocapitalize="none" placeholder="Enseigne" maxlength="40"></label>
+      <label><span class="mono">Montant € <b class="adv">conseillé</b></span><input id="fAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" maxlength="10"></label>
+    </div>
+    <p class="mono fname"><span class="dim">Nom du fichier :</span> <span id="curName"></span></p>
+    <button id="btnDelete" class="link danger">Retirer ce ticket</button>
+  </section>
+
+  <!-- Les tickets de la session -->
+  <section id="tray" class="tray" hidden>
+    <div class="mono dim tray-h"><span>Session</span><span id="trayCount"></span></div>
+    <div id="thumbs" class="thumbs"></div>
+  </section>
+
+  <!-- Export -->
+  <section id="export" class="export" hidden>
+    <div class="seg" role="group" aria-label="Format d'export">
+      <button data-pack="each" class="on">1 PDF par ticket</button>
+      <button data-pack="one">1 seul PDF</button>
+    </div>
+    <button id="btnShare" class="primary">Partager le PDF <small class="mono">Mail · Fichiers · …</small></button>
+    <div class="row2">
+      <button id="btnLater" class="ghost">Garder pour plus tard</button>
+      <button id="btnPhotos" class="ghost">Image → Photos</button>
+    </div>
+    <p id="exportMsg" class="mono dim msg" role="status"></p>
+  </section>
+
+  <!-- File « à envoyer plus tard » -->
+  <section id="queue" class="queue" hidden>
+    <div class="mono dim tray-h"><span>À envoyer plus tard</span><span id="queueCount"></span></div>
+    <ul id="queueList"></ul>
+  </section>
+</main>
+
+<!-- Barre du pouce -->
+<nav class="dock">
+  <input id="inCamera" type="file" accept="image/*" capture="environment" hidden>
+  <input id="inLibrary" type="file" accept="image/*" multiple hidden>
+  <button id="btnShoot" class="shoot"><span class="shoot-ico" aria-hidden="true"></span><span id="shootTxt">Photo du ticket</span></button>
+  <button id="btnImport" class="link mono">ou importer depuis les photos</button>
+</nav>
+
+<!-- Indicateur de chargement : toujours visible pendant le travail, toujours une sortie en cas d'échec -->
+<div id="loader" class="loader" role="status" aria-live="polite" hidden>
+  <div class="ld-card">
+    <div class="ld-head"><span class="ld-spin" aria-hidden="true"></span><span id="ldStep" class="ld-step">Chargement de la photo…</span><span id="ldCount" class="mono ld-count"></span></div>
+    <div class="ld-track"><i id="ldBar"></i></div>
+    <div id="ldErr" class="ld-err" hidden>
+      <p id="ldMsg"></p>
+      <div class="ld-btns">
+        <button id="ldRetry" class="primary sm">Réessayer</button>
+        <button id="ldAgain" class="ghost">Choisir d'autres photos</button>
+        <button id="ldClose" class="ghost">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Correction des coins -->
+<div id="editor" class="editor" hidden>
+  <div class="ed-top mono"><span>Glissez les 4 coins</span><span id="edInfo" class="dim"></span></div>
+  <div class="ed-stage" id="edStage">
+    <canvas id="edCanvas"></canvas>
+    <svg id="edSvg" class="ed-svg"></svg>
+    <canvas id="edLoupe" class="loupe" width="120" height="120" hidden></canvas>
+  </div>
+  <div class="ed-bar">
+    <button id="edCancel" class="ghost">Annuler</button>
+    <button id="edAuto" class="ghost">Auto</button>
+    <button id="edFull" class="ghost">Tout</button>
+    <button id="edOk" class="primary sm">Valider</button>
+  </div>
+</div>
+
+<footer class="foot mono">
+  <span class="fr" aria-hidden="true"><b></b><b></b><b></b></span>
+  <span>Données traitées localement · aucun compte · aucun serveur · rien n'est envoyé nulle part. Vos tickets ne quittent le téléphone que quand <em>vous</em> les partagez.</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+<script src="./assets/js/scan.js" defer></script>
+<script src="./assets/js/app.js" defer></script>
+</body>
+</html>
